@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  </head>
+  <body>
+    <h1>WebSocket Client</h1>
+
+    <canvas id="image"></canvas>
+
+    <div id="chatLog"></div>
+
+  </body>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+  <script>
+
+function message(msg){
+  $('#chatLog').append(msg+'</p>');
+};
+
+$(document).ready(function() {
+  try{
+    var socket;
+    var socket = new WebSocket("ws://127.0.0.1:8080");
+    socket.binaryType = "arraybuffer";
+
+    message('<p class="event">Socket Status: '+socket.readyState);
+
+    socket.onopen = function(){
+      message('<p class="event">Socket Status: '+socket.readyState+' (open)');
+    }
+
+    var w = 1280;
+    var h= 960;
+
+    socket.onmessage = function(msg, flags){
+
+      // Init canvas handles
+      var element = document.getElementById('image');
+      var ctx = element.getContext('2d');
+      ctx.canvas.width = w;
+      ctx.canvas.height = h;
+      var imgData = ctx.createImageData(w, h);
+
+      // Copy data
+      var binary = new Uint8Array(msg.data);
+      for(var i=8; i < binary.length; i++) {
+        imgData.data[i] = binary[i];
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+      message('<p class="message">Received');
+    }
+
+    socket.onclose = function(){
+      message('<p class="event">Socket Status: '+socket.readyState+' (Closed)');
+    }     
+
+  } catch(exception){
+    message('<p>Error'+exception);
+  } 
+});
+  </script>
+</html>

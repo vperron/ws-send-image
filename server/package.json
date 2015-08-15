@@ -1,0 +1,17 @@
+{
+  "name": "imgserver",
+  "version": "1.0.0",
+  "description": "sudo apt-get install libcairo2-dev sudo apt-get install libpango1.0-dev sudo apt-get install libjpeg-dev sudo apt-get install libgif-dev sudo apt-get install libpng-dev iopm install canvas",
+  "main": "server.js",
+  "dependencies": {
+    "canvas": "^1.2.7",
+    "ws": "^0.7.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "Victor Perron <victor@iso3103.net>",
+  "license": "ISC"
+}
