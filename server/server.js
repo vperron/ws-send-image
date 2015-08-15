@@ -9,6 +9,31 @@ var wss = new WebSocketServer({
   perMessageDeflate: false, // enable sending binary data, bug in node-ws
  });
 
+
+function getPixel(arr, row, col) {
+  return [
+    arr[row + col + 0],
+    arr[row + col + 1],
+    arr[row + col + 2],
+    arr[row + col + 3],
+  ];
+}
+
+function setPixel(arr, row, col, pixel) {
+  arr[row + col + 0] = pixel[0];
+  arr[row + col + 1] = pixel[1];
+  arr[row + col + 2] = pixel[2];
+  arr[row + col + 3] = pixel[3];
+}
+
+function index2row(i, width) {
+  return i * (width * 4);
+}
+
+function index2col(j) {
+  return j * 4;
+}
+
 wss.on('connection', function(instance) {
 
   instance.on('message', function(message) {
@@ -27,10 +52,21 @@ wss.on('connection', function(instance) {
 
     // First send info about the data
     instance.send(JSON.stringify({
+      type: 'image',
       name: imgName,
       width: img.width,
       height: img.height,
     }));
+
+    // Now send info about the region being sent.
+    var region = {
+      type: 'region',
+      top: 50,
+      left: 100,
+      width: 300,
+      height: 400,
+    };
+    instance.send(JSON.stringify(region));
 
     // Initialiaze a new Canvas with the same dimensions
     // as the image, and get a 2D drawing context for it.
@@ -41,7 +77,20 @@ wss.on('connection', function(instance) {
 
     var pixels = imgData.data;
     var bytearray = new Uint8Array(pixels);
+    var regionArray = new Uint8Array(region.width * region.height * 4 * 4);
+    for(var i = 0; i < region.height; i++) {
+      for(var j = 0; j < region.width; j++) {
+        var row = index2row(i, img.width);
+        var col = index2col(j);
+        var srcPixel = getPixel(
+            bytearray,
+            index2row(region.top , img.width) + row,
+            index2col(region.left) + col
+          );
+        setPixel(regionArray, row, col, srcPixel);
+      }
+    }
 
-    instance.send(bytearray, { binary: true });
+    instance.send(regionArray, { binary: true });
   });
 });
