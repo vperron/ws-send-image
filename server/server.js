@@ -15,13 +15,22 @@ wss.on('connection', function(instance) {
     console.log('received: %s', message);
   });
 
-  fs.readFile(__dirname + '/image.jpg', function(err, data) {
+  var imgName = 'image.jpg';
+
+  fs.readFile(__dirname + '/' + imgName, function(err, data) {
     if (err) {
       throw err;
     }
 
     var img = new Canvas.Image; // Create a new Image
     img.src = data;
+
+    // First send info about the data
+    instance.send(JSON.stringify({
+      name: imgName,
+      width: img.width,
+      height: img.height,
+    }));
 
     // Initialiaze a new Canvas with the same dimensions
     // as the image, and get a 2D drawing context for it.
