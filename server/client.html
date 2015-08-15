@@ -9,88 +9,113 @@
 
   </body>
   <script>
+
+// globals and useful functions
+var w = null;
+var h = null;
+var region = null;
+var socket = null;
+
+function getPixel(arr, row, col) {
+  return [
+    arr[row + col + 0],
+    arr[row + col + 1],
+    arr[row + col + 2],
+    arr[row + col + 3]
+  ];
+}
+
+function setPixel(arr, row, col, pixel) {
+  arr[row + col + 0] = pixel[0];
+  arr[row + col + 1] = pixel[1];
+  arr[row + col + 2] = pixel[2];
+  arr[row + col + 3] = pixel[3];
+}
+
+function index2row(i, width) {
+  return i * (width * 4);
+}
+
+function index2col(j) {
+  return j * 4;
+}
+
+function handleData(msg) {
+  if ((!w) || (!h)) {
+    console.error('error: did not have the image size !');
+    return;
+  }
+
+  // Init canvas handles
+  var element = document.getElementById('image');
+  var ctx = element.getContext('2d');
+  ctx.canvas.width = w;
+  ctx.canvas.height = h;
+  var imgData = ctx.createImageData(w, h);
+
+  // Copy data
+  var binary = new Uint8Array(msg.data);
+  if (region) {
+    for(var i = 0; i < region.height; i++) {
+      for(var j = 0; j < region.width; j++) {
+        var row = index2row(i, w);
+        var col = index2col(j);
+        var srcPixel = getPixel(binary, row, col);
+        setPixel(
+          imgData.data,
+          index2row(region.top, w) + row,
+          index2col(region.left) + col,
+          srcPixel
+        );
+      }
+    }
+  } else {
+    for(var i=0; i < binary.length; i++) {
+      imgData.data[i] = binary[i];
+    }
+  }
+
+  // Draw to canvas
+  ctx.putImageData(imgData, 0, 0);
+}
+
+function handleInfo(msg) {
+  var imgInfo = JSON.parse(msg.data);
+  if (imgInfo.type === 'image') {
+    w = imgInfo.width;
+    h = imgInfo.height;
+  }
+  if (imgInfo.type === 'region') {
+    region = imgInfo;
+  }
+}
+
+function getClickPosition(event) {
+  var x = event.x;
+  var y = event.y;
+  x -= event.target.offsetLeft;
+  y -= event.target.offsetTop;
+  return {
+    x: x,
+    y: y,
+  }
+}
+
+function onMouseDown(event) {
+  var clickPos = getClickPosition(event);
+  clickPos.type = 'click';
+  socket.send(JSON.stringify(clickPos));
+}
+
+// Entry point
 document.addEventListener("DOMContentLoaded", function() { 
   try{
-    var w = null;
-    var h = null;
-    var region = null;
-
-    function getPixel(arr, row, col) {
-      return [
-        arr[row + col + 0],
-        arr[row + col + 1],
-        arr[row + col + 2],
-        arr[row + col + 3]
-      ];
-    }
-
-    function setPixel(arr, row, col, pixel) {
-      arr[row + col + 0] = pixel[0];
-      arr[row + col + 1] = pixel[1];
-      arr[row + col + 2] = pixel[2];
-      arr[row + col + 3] = pixel[3];
-    }
-
-    function index2row(i, width) {
-      return i * (width * 4);
-    }
-
-    function index2col(j) {
-      return j * 4;
-    }
-
-    function handleData(msg) {
-      if ((!w) || (!h)) {
-        console.error('error: did not have the image size !');
-        return;
-      }
-
-      // Init canvas handles
-      var element = document.getElementById('image');
-      var ctx = element.getContext('2d');
-      ctx.canvas.width = w;
-      ctx.canvas.height = h;
-      var imgData = ctx.createImageData(w, h);
-
-      // Copy data
-      var binary = new Uint8Array(msg.data);
-      if (region) {
-        for(var i = 0; i < region.height; i++) {
-          for(var j = 0; j < region.width; j++) {
-            var row = index2row(i, w);
-            var col = index2col(j);
-            var srcPixel = getPixel(binary, row, col);
-            setPixel(
-                imgData.data,
-                index2row(region.top, w) + row,
-                index2col(region.left) + col,
-                srcPixel
-                );
-          }
-        }
-      } else {
-        for(var i=0; i < binary.length; i++) {
-          imgData.data[i] = binary[i];
-        }
-      }
-
-      // Draw to canvas
-      ctx.putImageData(imgData, 0, 0);
-    }
-
-    function handleInfo(msg) {
-      var imgInfo = JSON.parse(msg.data);
-      if (imgInfo.type === 'image') {
-        w = imgInfo.width;
-        h = imgInfo.height;
-      }
-      if (imgInfo.type === 'region') {
-        region = imgInfo;
-      }
-    }
+    // Add listener to canvas
+    var canvas = document.getElementById('image');
+    canvas.addEventListener("mousedown", onMouseDown, false);
 
     // Create websocket
-    var socket = new WebSocket("ws://127.0.0.1:8080");
+    socket = new WebSocket("ws://127.0.0.1:8080");
     socket.binaryType = "arraybuffer";
     console.log('init:', socket.readyState);
 
