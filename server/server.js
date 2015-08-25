@@ -1,13 +1,14 @@
 'use strict';
+
 var fs = require('fs');
 var Canvas = require('canvas');
 
-var WebSocketServer = require('ws').Server
+var WebSocketServer = require('ws').Server;
 
 var wss = new WebSocketServer({
   port: 8080,
   perMessageDeflate: false, // enable sending binary data, bug in node-ws
- });
+});
 
 
 function getPixel(arr, row, col) {
@@ -34,16 +35,7 @@ function index2col(j) {
   return j * 4;
 }
 
-function sendRegion(instance, img, top, left, right, bottom) {
-  // Now send info about the region being sent.
-  var region = {
-    type: 'region',
-    top: top,
-    left: left,
-    width: right,
-    height: bottom,
-  };
-  instance.send(JSON.stringify(region));
+function regionFromImage(img, coords) {
 
   // Initialiaze a new Canvas with the same dimensions
   // as the image, and get a 2D drawing context for it.
@@ -54,20 +46,35 @@ function sendRegion(instance, img, top, left, right, bottom) {
 
   var pixels = imgData.data;
   var bytearray = new Uint8Array(pixels);
-  var regionArray = new Uint8Array(region.width * region.height * 4 * 4);
-  for(var i = 0; i < region.height; i++) {
-    for(var j = 0; j < region.width; j++) {
+  var regionArray = new Uint8Array(img.width * coords.height * 4 * 4);
+  for (var i = 0; i < coords.height; i = i + 1) {
+    for (var j = 0; j < coords.width; j = j + 1) {
       var row = index2row(i, img.width);
       var col = index2col(j);
       var srcPixel = getPixel(
           bytearray,
-          index2row(region.top , img.width) + row,
-          index2col(region.left) + col
+          index2row(coords.top, img.width) + row,
+          index2col(coords.left) + col
         );
       setPixel(regionArray, row, col, srcPixel);
     }
   }
 
+  return regionArray;
+}
+
+function sendRegion(instance, img, coords) {
+  // Now send info about the region being sent.
+  var region = {
+    type: 'region',
+    top: coords.top,
+    left: coords.left,
+    width: coords.width,
+    height: coords.height,
+  };
+  instance.send(JSON.stringify(region));
+
+  var regionArray = regionFromImage(img, coords);
   instance.send(regionArray, { binary: true });
 }
 
@@ -87,7 +94,12 @@ wss.on('connection', function(instance) {
   instance.on('message', function(message) {
     console.log('received: %s', message);
     var clickPos = JSON.parse(message);
-    sendRegion(instance, img, clickPos.y + 50, clickPos.x - 50, 100, 200);
+    sendRegion(instance, img, {
+      top: clickPos.y + 50,
+      left: clickPos.x - 50,
+      width: 100,
+      height: 200,
+    });
   });
 
   // First send info about the data
@@ -98,5 +110,10 @@ wss.on('connection', function(instance) {
     height: img.height,
   }));
 
-  sendRegion(instance, img, 50, 100, 300, 400);
+  sendRegion(instance, img, {
+    top: 50,
+    left: 100,
+    width: 300,
+    height: 400,
+  });
 });
