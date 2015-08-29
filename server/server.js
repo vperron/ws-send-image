@@ -30,29 +30,40 @@ function imageFromFile(path) {
   return img;
 }
 
-var wss = new WebSocketServer({
-  port: 8080,
-  perMessageDeflate: false, // enable sending binary data, bug in node-ws
-});
+// Computes next region from previous one
+var i = 0;
+
+var region = {
+  top: 120,
+  left: 120,
+  width: 200,
+  height: 200,
+};
+
+function sendNextRegion(socket, img) {
+  sendRegion(socket, img, {
+    top: region.top + i,
+    left: region.left + i,
+    width: region.width,
+    height: region.height,
+  });
+  i = i + 1;
+}
 
 
 // Main code
 // ---------
 var imgName = __dirname + '/' + 'image.jpg';
-var img = imageFromFile(imgName);
+var REFRESH_RATE = 1000 / 30; // 15 FPS
+
+var wss = new WebSocketServer({
+  port: 8080,
+  perMessageDeflate: false, // enable sending binary data, bug in node-ws
+});
 
 wss.on('connection', function(instance) {
 
-  instance.on('message', function(message) {
-    console.log('received: %s', message);
-    var clickPos = JSON.parse(message);
-    sendRegion(instance, img, {
-      top: clickPos.y + 50,
-      left: clickPos.x - 50,
-      width: 100,
-      height: 200,
-    });
-  });
+  var img = imageFromFile(imgName);
 
   // First send info about the data
   instance.send(JSON.stringify({
@@ -62,10 +73,5 @@ wss.on('connection', function(instance) {
     height: img.height,
   }));
 
-  sendRegion(instance, img, {
-    top: 50,
-    left: 100,
-    width: 300,
-    height: 400,
-  });
+  setInterval(sendNextRegion, REFRESH_RATE, instance, img, region);
 });

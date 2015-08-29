@@ -24,9 +24,11 @@ function index2col(j) {
   return j * 4;
 }
 
-module.exports = {
-  getPixel: getPixel,
-  setPixel: setPixel,
-  index2row: index2row,
-  index2col: index2col,
-};
+if (module) {
+  module.exports = {
+    getPixel: getPixel,
+    setPixel: setPixel,
+    index2row: index2row,
+    index2col: index2col,
+  };
+}
